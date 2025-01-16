@@ -25,4 +25,4 @@ Route::get('/', function () {
 
 Route::get('/checkout', [OrderController::class, 'checkout'])->name('checkout');
 Route::post('/payment/initiate', [SenangpayController::class, 'initiatePayment'])->name('payment.initiate');
-Route::get('/payment/callback', [SenangpayController::class, 'callback'])->name('payment.callback');
+Route::post('/payment/callback', [SenangpayController::class, 'callback'])->name('payment.callback');

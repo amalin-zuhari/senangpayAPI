@@ -12,7 +12,7 @@ class VerifyCsrfToken extends Middleware
      * @var array<int, string>
      */
     protected $except = [
-        '/payment/initiate', // Add the route you want to exclude
+        '/payment/*'
     ];
     
 }

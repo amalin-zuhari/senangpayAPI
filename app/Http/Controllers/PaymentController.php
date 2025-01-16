@@ -63,7 +63,7 @@ class PaymentController extends Controller
         // Log the callback data for debugging
         Log::info('SenangPay Callback received:', $request->all());
 
-        // Verify hash from the callback
+        // Verify hash from the callbackk
         $hashString = $secretKey .
             $request->status_id .
             $request->order_id .
