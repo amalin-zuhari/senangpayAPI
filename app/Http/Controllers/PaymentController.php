@@ -10,15 +10,20 @@ class PaymentController extends Controller
 {
     public function initiate(Request $request)
     {
+        Log::info('Payment initiation started.', ['request_data' => $request->all()]);
+
         // Retrieve SenangPay configuration
         $merchantId = config('services.senangpay.merchant_id');
         $secretKey = config('services.senangpay.secret_key');
         $apiUrl = config('services.senangpay.api_url');
 
-        dd($merchantId, $secretKey, $apiUrl);
+        Log::info('SenangPay configuration loaded.', [
+            'merchant_id' => $merchantId,
+            'api_url' => $apiUrl
+        ]);
 
         // Validate incoming request
-        $request->validate([
+        $validatedData = $request->validate([
             'order_id' => 'required|string',
             'amount' => 'required|numeric',
             'name' => 'required|string',
@@ -26,6 +31,8 @@ class PaymentController extends Controller
             'phone' => 'required|string',
             'detail' => 'required|string'
         ]);
+
+        Log::info('Request validated successfully.', ['validated_data' => $validatedData]);
 
         // Prepare payment data
         $data = [
@@ -45,8 +52,12 @@ class PaymentController extends Controller
 
         $data['hash'] = hash_hmac('sha256', $hashString, $secretKey);
 
+        Log::info('Hash generated for payment data.', ['hash' => $data['hash']]);
+
         // Construct payment URL
         $paymentUrl = "{$apiUrl}{$merchantId}";
+
+        Log::info('Payment URL constructed.', ['payment_url' => $paymentUrl]);
 
         // Return payment URL and data
         return response()->json([
@@ -57,13 +68,12 @@ class PaymentController extends Controller
 
     public function callback(Request $request)
     {
+        Log::info('SenangPay callback received.', ['callback_data' => $request->all()]);
+
         // Retrieve SenangPay configuration
         $secretKey = config('services.senangpay.secret_key');
 
-        // Log the callback data for debugging
-        Log::info('SenangPay Callback received:', $request->all());
-
-        // Verify hash from the callbackk
+        // Verify hash from the callback
         $hashString = $secretKey .
             $request->status_id .
             $request->order_id .
@@ -72,16 +82,26 @@ class PaymentController extends Controller
 
         $expectedHash = hash_hmac('sha256', $hashString, $secretKey);
 
+        Log::info('Hash verification process.', [
+            'calculated_hash' => $expectedHash,
+            'received_hash' => $request->hash
+        ]);
+
         if ($expectedHash !== $request->hash) {
-            Log::error('Invalid hash received from SenangPay');
+            Log::error('Invalid hash received from SenangPay.');
             return response()->json(['status' => 'error', 'message' => 'Invalid hash'], 400);
         }
 
         // Determine payment status
         $status = $request->status_id == '1' ? 'completed' : 'failed';
 
+        Log::info("Payment status determined: {$status}", [
+            'order_id' => $request->order_id,
+            'transaction_id' => $request->transaction_id
+        ]);
+
         // Implement your business logic here (e.g., update database)
-        Log::info("Payment status: {$status} for order_id: {$request->order_id}");
+        Log::info('Business logic executed for callback.');
 
         return response()->json([
             'status' => 'success',
