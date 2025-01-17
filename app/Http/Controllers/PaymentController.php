@@ -66,48 +66,49 @@ class PaymentController extends Controller
         ]);
     }
 
+    // 
+    
     public function callback(Request $request)
-    {
-        Log::info('SenangPay callback received.', ['callback_data' => $request->all()]);
+{
+    Log::info('SenangPay callback received.', ['callback_data' => $request->all()]);
 
-        // Retrieve SenangPay configuration
-        $secretKey = config('services.senangpay.secret_key');
+    $secretKey = config('services.senangpay.secret_key');
 
-        // Verify hash from the callback
-        $hashString = $secretKey .
-            $request->status_id .
-            $request->order_id .
-            $request->transaction_id .
-            $request->msg;
+    // Verify hash from the callback
+    $hashString = $secretKey .
+        $request->status_id .
+        $request->order_id .
+        $request->transaction_id .
+        $request->msg;
 
-        $expectedHash = hash_hmac('sha256', $hashString, $secretKey);
+    $expectedHash = hash_hmac('sha256', $hashString, $secretKey);
 
-        Log::info('Hash verification process.', [
-            'calculated_hash' => $expectedHash,
-            'received_hash' => $request->hash
-        ]);
+    Log::info('Hash verification process.', [
+        'calculated_hash' => $expectedHash,
+        'received_hash' => $request->hash
+    ]);
 
-        if ($expectedHash !== $request->hash) {
-            Log::error('Invalid hash received from SenangPay.');
-            return response()->json(['status' => 'error', 'message' => 'Invalid hash'], 400);
-        }
-
-        // Determine payment status
-        $status = $request->status_id == '1' ? 'completed' : 'failed';
-
-        Log::info("Payment status determined: {$status}", [
-            'order_id' => $request->order_id,
-            'transaction_id' => $request->transaction_id
-        ]);
-
-        // Implement your business logic here (e.g., update database)
-        Log::info('Business logic executed for callback.');
-
-        return response()->json([
-            'status' => 'success',
-            'payment_status' => $status,
-            'order_id' => $request->order_id,
-            'transaction_id' => $request->transaction_id
+    if ($expectedHash !== $request->hash) {
+        Log::error('Invalid hash received from SenangPay.');
+        return redirect()->route('payment.return')->withErrors([
+            'message' => 'Invalid payment verification. Please contact support.'
         ]);
     }
+
+    // Determine payment status
+    $status = $request->status_id == '1' ? 'completed' : 'failed';
+
+    Log::info("Payment status determined: {$status}", [
+        'order_id' => $request->order_id,
+        'transaction_id' => $request->transaction_id
+    ]);
+
+    // Redirect to return page with payment details
+    return redirect()->route('payment.return')->with([
+        'payment_status' => $status,
+        'order_id' => $request->order_id,
+        'transaction_id' => $request->transaction_id
+    ]);
+}
+
 }

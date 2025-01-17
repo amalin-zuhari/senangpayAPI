@@ -21,10 +21,10 @@ class OrderController extends Controller
  
         $paymentData = [ 
             'detail' => 'Product purchase', 
-            'amount' => '100.00', 
+            'amount' => '20.00', 
             'order_id' => 'ORD' . time(), 
-            'name' => 'Customer Name', 
-            'email' => 'customer@example.com', 
+            'name' => 'Aaron Aziz', 
+            'email' => 'aaronaziz@example.com', 
             'phone' => '0123456789', 
             'merchant_id' => $merchantId 
         ]; 

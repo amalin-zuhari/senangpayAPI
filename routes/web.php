@@ -20,8 +20,9 @@ Route::get('/', function () {
     return view('welcome');
 });
 
-// Route::post('/payment/initiate', [PaymentController::class, 'initiatePayment'])->name('payment.initiate');
-// Route::post('/payment/callback', [PaymentController::class, 'callback'])->name('payment.callback');
+Route::get('/payment/return', function () {
+    return view('payment.return');
+})->name('payment.return');
 
 Route::get('/checkout', [OrderController::class, 'checkout'])->name('checkout');
 Route::post('/payment/initiate', [SenangpayController::class, 'initiatePayment'])->name('payment.initiate');
