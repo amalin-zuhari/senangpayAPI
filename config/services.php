@@ -32,9 +32,9 @@ return [
     ],
 
     'senangpay' => [
-    'merchant_id' => env('SENANGPAY_MERCHANT_ID'),
-    'secret_key' => env('SENANGPAY_SECRET_KEY'),
-    'api_url' => env('SENANGPAY_API_URL'),
+        'merchant_id' => env('SENANGPAY_MERCHANT_ID'),
+        'secret_key' => env('SENANGPAY_SECRET_KEY'),
+        'api_url' => env('SENANGPAY_API_URL'),
     ],
 
 ];

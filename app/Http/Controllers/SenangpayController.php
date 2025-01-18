@@ -7,95 +7,130 @@ use Illuminate\Support\Facades\Log;
 
 class SenangpayController extends Controller
 {
-    
-    private $merchantId;
-    private $secretKey;
-    private $apiUrl;
-
-    public function __construct()
-    {
-        $this->merchantId = config('services.senangpay.merchant_id');
-        $this->secretKey = config('services.senangpay.secret_key');
-        $this->apiUrl = config('services.senangpay.api_url');
-    }
-
     public function initiatePayment(Request $request)
     {
+        Log::info('Starting payment initiation', ['request_data' => $request->all()]);
 
-        $validated = $request->validate([
-            'detail' => 'required|string',
-            'amount' => 'required|numeric',
-            'order_id' => 'required|string',
-            'name' => 'required|string',
+        $merchantId = config('services.senangpay.merchant_id');
+        $secretKey = config('services.senangpay.secret_key');
+        $apiUrl = config('services.senangpay.api_url');
+
+        Log::info('Configuration loaded', [
+            'merchant_id' => $merchantId,
+            'secret_key_exists' => !empty($secretKey),
+            'api_url' => $apiUrl
+        ]);
+
+        $validatedData = $request->validate([
+            'detail' => 'required|string|max:500',
+            'amount' => 'required|numeric|min:1',
+            'order_id' => 'required|string|max:100',
+            'name' => 'required|string|max:100',
             'email' => 'required|email',
             'phone' => 'required|string',
         ]);
 
-
-        //Generate hash
-        $hashString = hash_hmac('sha256', 
-            $this->secretKey . 
-            urldecode($validated['detail']) . 
-            urldecode($validated['amount']) . 
-            urldecode($validated['order_id']), 
-            $this->secretKey
-        );
-
-        // Prepare data for the payment form
-        $paymentData = [
-            'detail' => $validated['detail'],
-            'amount' => $validated['amount'],
-            'order_id' => $validated['order_id'],
-            'name' => $validated['name'],
-            'email' => $validated['email'],
-            'phone' => $validated['phone'],
-            'hash' => $hashString,
-            'merchant_id' => $this->merchantId
+        $data = [
+            'detail' => $request->detail,
+            'amount' => $request->amount,
+            'order_id' => $request->order_id,
+            'name' => $request->name,
+            'email' => $request->email,
+            'phone' => $request->phone,
         ];
 
-        // Return view with payment form
-        return view('payment.redirect', compact('paymentData'));
+        $hashString = $secretKey .
+            $data['detail'] .
+            $data['amount'] .
+            $data['order_id'];
+
+        Log::info('Generating hash', ['hash_string' => $hashString]);
+
+        $data['hash'] = hash_hmac('sha256', $hashString, $secretKey);
+
+        Log::info('Payment data prepared', ['data' => $data]);
+
+        $paymentUrl = $apiUrl . $merchantId;
+
+        Log::info('Redirecting to payment page', ['url' => $paymentUrl]);
+
+        return redirect()->away($paymentUrl . '?' . http_build_query($data));
     }
 
     public function callback(Request $request)
     {
         Log::info('Payment callback received', $request->all());
 
-        // Verify hash
-        $calculatedHash = hash_hmac('sha256',
-            $this->secretKey .
-            urldecode($request->status_id) .
-            urldecode($request->order_id) .
-            urldecode($request->transaction_id) .
-            urldecode($request->msg),
-            $this->secretKey
-        );
+        $secretKey = config('services.senangpay.secret_key');
 
-        if ($calculatedHash !== urldecode($request->hash)) {
-            Log::error('Invalid callback signature');
-            return response()->json(['status' => 'error', 'message' => 'Hash verification failed'], 400);
+        $hashString = $secretKey .
+            $request->status_id .
+            $request->order_id .
+            $request->transaction_id .
+            $request->msg;
+
+        Log::info('Verifying callback hash', [
+            'hash_string' => $hashString,
+            'received_hash' => $request->hash
+        ]);
+
+        $calculatedHash = hash_hmac('sha256', $hashString, $secretKey);
+
+        if ($calculatedHash !== $request->hash) {
+            Log::error('Invalid callback hash', [
+                'calculated' => $calculatedHash,
+                'received' => $request->hash
+            ]);
+            return response('OK');
         }
 
-        // Process the payment result
-        $status_id = urldecode($request->status_id);
-        $msg = urldecode($request->msg);
-        $order_id = urldecode($request->order_id);
-        $transaction_id = urldecode($request->transaction_id);
-
-        if ($status_id === '1') {
-            // Payment successful - Update your order status here
-            // Add your order processing logic
-            
-            return view('payment.success', [
-                'message' => "Payment successful for order $order_id",
-                'transaction_id' => $transaction_id
+        if ($request->status_id === '1') {
+            Log::info('Payment successful', [
+                'order_id' => $request->order_id,
+                'transaction_id' => $request->transaction_id
             ]);
         } else {
-            // Payment failed
-            return view('payment.failed', [
-                'message' => "Payment failed: $msg",
-                'order_id' => $order_id
+            Log::error('Payment failed', [
+                'order_id' => $request->order_id,
+                'message' => $request->msg
             ]);
         }
+
+        return response('OK');
+    }
+
+    public function return(Request $request)
+    {
+        Log::info('Payment return received', $request->all());
+
+        $secretKey = config('services.senangpay.secret_key');
+
+        $hashString = $secretKey .
+            $request->status_id .
+            $request->order_id .
+            $request->transaction_id .
+            $request->msg;
+
+        Log::info('Verifying return hash', [
+            'hash_string' => $hashString,
+            'received_hash' => $request->hash
+        ]);
+
+        $calculatedHash = hash_hmac('sha256', $hashString, $secretKey);
+
+        if ($calculatedHash !== $request->hash) {
+            Log::error('Invalid return hash', [
+                'calculated' => $calculatedHash,
+                'received' => $request->hash
+            ]);
+            return view('payment.return')->with('error', 'Invalid payment verification');
+        }
+
+        return view('payment.return', [
+            'status_id' => $request->status_id,
+            'order_id' => $request->order_id,
+            'msg' => $request->msg,
+            'transaction_id' => $request->transaction_id
+        ]);
     }
 }

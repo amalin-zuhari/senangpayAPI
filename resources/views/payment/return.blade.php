@@ -1,29 +1,39 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Payment Status</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/css/bootstrap.min.css" rel="stylesheet">
 </head>
-<body class="bg-light">
-    <div class="container text-center py-5">
-        <h1 class="{{ session('payment_status') === 'completed' ? 'text-success' : 'text-danger' }}">
-            {{ session('payment_status') === 'completed' ? 'Thank You!' : 'Payment Failed' }}
-        </h1>
-        <p class="lead">
-            {{ session('payment_status') === 'completed' 
-                ? 'Your payment has been processed successfully.' 
-                : 'We were unable to process your payment. Please try again.' }}
-        </p>
-        @if(session('order_id') && session('transaction_id'))
-            <p>Order ID: {{ session('order_id') }}</p>
-            <p>Transaction ID: {{ session('transaction_id') }}</p>
+<body>
+    <div class="container mt-5">
+        @if(session('error'))
+            <div class="alert alert-danger">
+                {{ session('error') }}
+            </div>
         @endif
-        @if ($errors->any())
-            <p class="text-danger">{{ $errors->first('message') }}</p>
-        @endif
-        <a href="/" class="btn btn-primary">Go Back to Home</a>
+
+        <div class="card">
+            <div class="card-body">
+                @if($status_id == '1')
+                    <div class="alert alert-success">
+                        <h4>Payment Successful!</h4>
+                        <p>Order ID: {{ $order_id }}</p>
+                        <p>Transaction ID: {{ $transaction_id }}</p>
+                        <p>Message: {{ str_replace('_', ' ', $msg) }}</p>
+                    </div>
+                @else
+                    <div class="alert alert-danger">
+                        <h4>Payment Failed!</h4>
+                        <p>Order ID: {{ $order_id }}</p>
+                        <p>Message: {{ str_replace('_', ' ', $msg) }}</p>
+                    </div>
+                @endif
+
+                <div class="mt-4">
+                    <a href="{{ url('/') }}" class="btn btn-primary">Back to Home</a>
+                </div>
+            </div>
+        </div>
     </div>
 </body>
 </html>
